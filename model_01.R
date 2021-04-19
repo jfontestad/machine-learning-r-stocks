@@ -97,20 +97,22 @@ data <- matrix(dataset_xts,
 
 colnames(data) <- colnames(dataset_xts)
 #scale sets
-train_index <- round(nrow(data) * 0.7)
-val_index <- round(nrow(data) * 0.85)
+train_index <- 20000
+val_index <- 30000
+test_index <- 40000
 train_data <- data[1:train_index, ]
 mean <- apply(train_data, 2, mean)
 std <- apply(train_data, 2, sd) 
 data <- scale(data, center= mean, scale = std)
 
 #hyperparameters
-lookback <- 35 #take data from 35 bars behind, 3 hours
-step <- 6 #sample every 30 mins (5*6)
-delay <- 15 #predict 15 bars ahead, 1.25 hours
+lookback <- 78 #observaciones de un dia entero de trading en barras de 5 min 390 mins/5mins = 78 barras
+step <- 6 #muestras cada hora, 60 mins/ 5 = 12 barras
+delay <- 12 #objetivo es el retorno dos horas en el futuro
 batch_size <- 128 
 # Large batches with few timesteps -> faster
 # Small batches with many timesteps -> better generalization/accuracy
+# input size = (samples, timesteps, series) = (batch_size, lookback/step, features)
 
 #generators
 train_gen <- generator(data,
@@ -122,6 +124,11 @@ train_gen <- generator(data,
                        step = step,
                        batch_size = batch_size
 )
+
+# test <- train_gen()
+# el1 <- test[[1]]
+# print(dim(el1))
+# el2 <- test[[2]]
 
 val_gen <- generator(data,
                        lookback = lookback,
@@ -137,25 +144,34 @@ test_gen <- generator(data,
                        lookback = lookback,
                        delay = delay,
                        min_index = val_index + 1,
-                       max_index = NULL,
+                       max_index = test_index,
                        shuffle = FALSE,
                        step = step,
                        batch_size = batch_size
 )
+# test <- test_gen()
+# el1 <- test[[1]]
+# print(dim(el1))
+# el2 <- test[[2]]
 
 val_steps <- (val_index - (train_index + 1) - lookback) / batch_size
-test_steps <- (nrow(data) - (val_index + 1) - lookback) / batch_size
+test_steps <- (test_index - (val_index + 1) - lookback) / batch_size
 
 
 #5) Crear el modelo y entrenarlo
 
+# model <- keras_model_sequential() %>%
+#   layer_lstm(units = 300,
+#              input_shape = list(NULL, dim(data)[[-1]])) %>%
+#   #layer_dropout(0.5) %>%
+#   layer_dense(units = 100) %>%
+#   #layer_dropout(0.5) %>%
+#   layer_dense(units = 1) 
+
 model <- keras_model_sequential() %>%
-  layer_lstm(units = 300,
-             input_shape = list(NULL, dim(data)[[-1]])) %>%
-  #layer_dropout(0.5) %>%
-  layer_dense(units = 100) %>%
-  #layer_dropout(0.5) %>%
-  layer_dense(units = 1) 
+  layer_flatten(input_shape = c(lookback / step, dim(data)[-1])) %>%
+  layer_dense(units = 32, activation = "relu") %>%
+  layer_dense(units = 1)
 
 #predict_proba : sigmoid en output layer si quiero normalizar las predicciones como probabilidades y son dos clases 
 #para problema multi clase usar softmax,
@@ -174,9 +190,18 @@ history <- model %>% fit_generator(
                       train_gen,
                       steps_per_epoch= 500,
                       epochs = 20,
-                      validation_data = val_gen,
-                      validation_steps = val_steps
+                      validation_data = val_gen(),
+                      validation_steps = 1
 )
+
+predictions <- model %>% predict_generator(val_gen(), steps = 128)
+#prediction <- model %>% predict(el1)
+#TO DO:
+#Ver como se utiliza evaluate_generator
+#Volver a probar modelo actual con la columna target correcta
+#Verificar si samples tiene que ser igual a batch size o esta bien que sea batch size + 1
+#Predecir signos de retornos en vez del retorno en si (bi classifier)
+
 
 #6) predecir y medir presicion
 #y_pred <- keras::predict_classes(model, x_test, batch_size = batch_size)

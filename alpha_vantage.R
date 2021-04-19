@@ -69,8 +69,9 @@ generator <- function(data, lookback, delay, min_index, max_index,
       if (i + batch_size >= max_index) {
         i <<- min_index + lookback
       }
-      rows <- c(i:min(i+batch_size, max_index))
+      rows <- c(i:min(i+batch_size-1, max_index))
       i <<- i + length(rows)
+      print(paste("start index", i, "end index", i + length(rows)))
     }
     
     samples <- array(0, dim = c(length(rows),
@@ -82,7 +83,7 @@ generator <- function(data, lookback, delay, min_index, max_index,
       indices <- seq(rows[[j]] - lookback, rows[[j]],
                      length.out = dim(samples)[[2]])
       samples[j,,] <- data[indices,]
-      targets[[j]] <- data[rows[[j]] + delay, 2]
+      targets[[j]] <- data[rows[[j]] + delay, 6] #asume que la columna target se encuentra en la columna 6
     }
     
     list(samples, targets)
