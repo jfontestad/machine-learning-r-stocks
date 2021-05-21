@@ -21,8 +21,9 @@ source('utils.R', echo=TRUE)
 #use_python("C:/Users/sergio/Miniconda3/envs/py_36_64/python.exe", required = TRUE)
 #use_condaenv("C:/Users/sergio/Miniconda3/envs/py_36_64", required = TRUE)
 #use_miniconda("py_36_64", required = TRUE)
-#reticulate::py_config()
+reticulate::py_config()
 
+model_name <- 'dense_relu'
 #1) Data Preparation
 dataset <- read.csv("GGAL_intraday_series.csv")
 colnames(dataset) <- c("Time", "Open", "High", "Low", "Close", "Volume")
@@ -76,8 +77,8 @@ test_set  <- returnInputList(test_data, lookback, target)
 x_test <- test_set[[1]]
 y_test <- test_set[[2]]
 print("Test dims")
-print(dim(x_train)) 
-print(dim(y_train))
+print(dim(x_test)) 
+print(dim(y_test))
 #generators
 # train_gen <- generator(data,
 #                        lookback = lookback,
@@ -133,8 +134,8 @@ print(dim(y_train))
 #   layer_dense(units = 1) 
 
 model <- keras_model_sequential() %>%
-  layer_flatten(input_shape = c(dim(x_train)[2], dim(x_train)[3])) %>%
-  layer_dense(units = 32, activation = "relu") %>%
+  layer_lstm(units = 4, input_shape = c(dim(x_train)[2], dim(x_train)[3])) %>%
+  #layer_dense(units = 32, activation = "relu") %>%
   layer_dense(units = 1)
 
 #predict_proba : sigmoid en output layer si quiero normalizar las predicciones como probabilidades y son dos clases 
@@ -144,20 +145,25 @@ model <- keras_model_sequential() %>%
 
 model %>%
   compile (
-    optimizer = optimizer_rmsprop(),
-    loss = 'mae', #mean squared error = mse mean absolute error =mae
-    metrics = 'accuracy')
+    optimizer = 'adam',
+    loss = 'mse', #mean squared error = mse mean absolute error =mae
+    metrics = c('accuracy','mse'))
 
 summary(model)
 
 history <- model %>% fit(x_train, y_train, 
-                         steps_per_epoch= 500,
-                         epochs = 20
-                         #validation_data = (x_test, y_test),
+                         #steps_per_epoch= 500,
+                         epochs = 500,
+                         batch_size = batch_size,
+                         validation_data = list(x_test, y_test)
                          #validation_steps = 1
 )
 
-predictions <- model %>% predict_generator(val_gen(), steps = 128)
+scaled_predictions <- model %>% predict(x_train)
+predictions <- scaled_predictions * std[length(std)] + mean[length(mean)]
+hist(predictions, breaks = 10, probability = TRUE)
+mean_metrics <- lapply(history$metrics, mean)
+write.csv(mean_metrics, paste(model_name, 'mean_metrics.csv', sep = ''))
 #prediction <- model %>% predict(el1)
 #TO DO:
 #Ver como se utiliza evaluate_generator

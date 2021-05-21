@@ -91,3 +91,8 @@ returnInputList <- function(data, lookback, delay) {
     
     return(list(samples, targets))
 }
+
+unscale <- function(data, mean, standard_dev) {
+  unscaled_data <- data * standard_dev + mean
+  return(unscaled_data)
+}
