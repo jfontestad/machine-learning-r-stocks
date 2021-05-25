@@ -96,3 +96,9 @@ unscale <- function(data, mean, standard_dev) {
   unscaled_data <- data * standard_dev + mean
   return(unscaled_data)
 }
+
+printDimsSet <- function(set_name, set_x, set_y) {
+  print(paste(set_name, "dims"))
+  print(dim(set_x)) 
+  print(dim(set_y))
+}

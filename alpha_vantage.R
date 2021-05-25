@@ -1,7 +1,7 @@
-library(alphavantager)
-
 cat("\014")
 rm(list =ls())
+
+library(alphavantager)
 current_path <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(current_path))
 options(scipen = 999)
@@ -9,10 +9,10 @@ print(getwd())
 
 api_key <- "20V82J34FLG91SI5"
 av_api_key(api_key)
-api_call <- 1
+api_call <- 1 #limit 5 calls per minute
 
 #1) llamar el dataset completo de alpha vantage. Done
-getFullExtendedIntradaySeries <- function(symbol, interval, outputsize, datatype) {
+getFullExtendedIntradaySeries <- function(symbol) {
   #interval: 1 min, 5 , 15 , 30 , 60
   #datatype: json csv 
   # outputsize: full, compact (100 data points per call)
@@ -20,8 +20,8 @@ getFullExtendedIntradaySeries <- function(symbol, interval, outputsize, datatype
     for (month in c(1:12)) {
       new_slice <- paste("year", year, "month", month, sep = '')
       print(new_slice)
-      data <- av_get(symbol, av_fun = "TIME_SERIES_INTRADAY_EXTENDED", interval = interval, 
-                     outputsize = outputsize, datatype = datatype, slice = new_slice)
+      data <- av_get(symbol, av_fun = "TIME_SERIES_INTRADAY_EXTENDED", interval = 1, 
+                     outputsize = 'full', datatype = 'csv', slice = new_slice)
       
       if(!exists('stock_data')) {
         print("creating new stock data object")
@@ -39,9 +39,14 @@ getFullExtendedIntradaySeries <- function(symbol, interval, outputsize, datatype
       api_call <- api_call + 1
     }
   }
-  write.csv(stock_data, file = paste(symbol, "_intraday_series.csv", sep = ""), row.names = FALSE)
+  write.csv(stock_data, file = paste(symbol, "_intraday_series_full_1min.csv", sep = ""), row.names = FALSE)
 }
 
+getLastIntradayBars <- function(symbol, interval) {
+  #getLastIntradayBars('GGAL', '5min')
+  data <- av_get(symbol, av_fun = "TIME_SERIES_INTRADAY", interval = interval, outputsize = 'compact', datatype = 'csv')
+  return(data)
+}
 
 #2) darle pariodicidad que quiera, ticks, min, horas, dia, semanas, mes
 av_toperiod <- function(data, periodo, k = 1) {
