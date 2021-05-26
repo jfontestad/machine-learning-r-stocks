@@ -40,11 +40,19 @@ getFullExtendedIntradaySeries <- function(symbol) {
     }
   }
   write.csv(stock_data, file = paste(symbol, "_intraday_series_full_1min.csv", sep = ""), row.names = FALSE)
+  return(data)
 }
 
 getLastIntradayBars <- function(symbol, interval) {
   #getLastIntradayBars('GGAL', '5min')
   data <- av_get(symbol, av_fun = "TIME_SERIES_INTRADAY", interval = interval, outputsize = 'compact', datatype = 'csv')
+  return(data)
+}
+
+getDailySeries <- function(symbol, output_size) {
+  #getDailySeries('GGAL', 'full')
+  data <- av_get(symbol, av_fun = "TIME_SERIES_DAILY", outputsize = output_size, datatype = 'csv')
+  write.csv(data, file = paste(symbol, "_daily_series.csv", sep = ""), row.names = FALSE)
   return(data)
 }
 

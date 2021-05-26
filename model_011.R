@@ -8,6 +8,7 @@ library(tensorflow)
 library(quantmod)
 library(reshape2)
 library(ggplot2)
+library(PerformanceAnalytics)
 
 current_path <- rstudioapi::getActiveDocumentContext()$path
 setwd(dirname(current_path))
@@ -22,8 +23,8 @@ source('utils.R', echo=TRUE)
 #use_condaenv("C:/Users/sergio/Miniconda3/envs/py_36_64", required = TRUE)
 #use_miniconda("py_36_64", required = TRUE)
 reticulate::py_config()
-model_name <- 'lstm'
-target_level <- 0
+model_name <- 'lstm_100_3_75_'
+target_level <- 0.015
 
 #1) Data Preparation / Feature engeneering
 dataset <- read.csv("GGAL_intraday_series.csv")
@@ -31,7 +32,7 @@ colnames(dataset) <- c("Time", "Open", "High", "Low", "Close", "Volume")
 dataset$Time <- as.POSIXct(as.character(dataset$Time))
 
 dataset_xts <- av_toperiod(dataset, periodo = "minutes", k = 30)
-dataset_xts$rtn <- diff(log(dataset_xts$Close))
+dataset_xts$rtn <- diff(log(dataset_xts$Close), lag = 3)
 dataset_xts$volatility <- TTR::volatility(dataset_xts, calc = "yang.zhang", N = 20)
 dataset_xts$ma_35 <- TTR::SMA(dataset_xts$Close, n = 35)
 dataset_xts$ma_5 <- TTR::SMA(dataset_xts$Close, n = 5)
@@ -67,8 +68,8 @@ data <- data[, c('rtn_scaled', 'low_volatility', 'medium_volatility', 'high_vola
                  'close_above_ma_20', 'close_under_ma_20', 'increase_ewo', 'decrease_ewo', 'rtn_obj')]
 
 #3) Hyperparameters and tensor dimensions 
-lookback <- 12 #observaciones de un dia entero de trading en barras de 5 min 390 mins/5mins = 78 barras
-target <- 3 #objetivo es el retorno dos horas en el futuro
+lookback <- 6
+target <- 3 
 batch_size <- 128 
 
 train_data <- data[1:train_index,]
@@ -100,7 +101,7 @@ model %>%
 summary(model)
 
 history <- model %>% fit(x_train, y_train, 
-                         epochs = 40,
+                         epochs = 75,
                          batch_size = batch_size,
                          validation_data = list(x_test, y_test))
 
